@@ -11,6 +11,7 @@ client = MongoClient(MONGO_URI)
 database = client[MONGO_DB]
 
 # Collections
+shopowner_collection = database.get_collection("shop_owner")
 users_collection = database.get_collection("users")
 products_collection = database.get_collection("products")
 payments_collection = database.get_collection("payments")

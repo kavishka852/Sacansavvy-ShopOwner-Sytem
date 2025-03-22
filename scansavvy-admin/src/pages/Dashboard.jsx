@@ -27,7 +27,9 @@ const DashboardHome = ({ statsData }) => (
         <div key={index} className="stat-card">
           <div className="stat-header">
             <h3>{stat.title}</h3>
-            <span className={`stat-change ${stat.changeType || "positive"}`}>{stat.change}</span>
+            <span className={`stat-change ${stat.changeType || "positive"}`}>
+              {stat.change}
+            </span>
           </div>
           <p className="stat-value">{stat.value}</p>
         </div>
@@ -79,28 +81,59 @@ const Dashboard = () => {
   const [users, setUsers] = useState([]);
   const [products, setProducts] = useState([]);
   const [statsData, setStatsData] = useState([
-    { title: "Total Users", value: "0", change: "0%" },
-    { title: "Active Users", value: "0", change: "0%" },
-    { title: "In Stock Products", value: "0", change: "0%" },
-    { title: "Low Stock Products", value: "0", change: "0%" },
+    // { title: "Total Users", value: "0", change: "0%" },
+    // { title: "Active Users", value: "0", change: "0%" },
+    // { title: "In Stock Products", value: "0", change: "0%" },
+    // { title: "Low Stock Products", value: "0", change: "0%" },
   ]);
 
   // Fetch users and products data
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch users
-        const usersResponse = await fetch("http://127.0.0.1:8000/api/user");
-        const usersData = await usersResponse.json();
-        
-        // Fetch products
-        const productsResponse = await fetch("http://127.0.0.1:8000/api/products");
-        const productsData = await productsResponse.json();
-        
+        // Show loading state or placeholder data initially
+        setStatsData([
+          { title: "Total Users", value: "Loading...", change: "-" },
+          { title: "Active Users", value: "Loading...", change: "-" },
+          { title: "In Stock Products", value: "Loading...", change: "-" },
+          { title: "Low Stock Products", value: "Loading...", change: "-" },
+        ]);
+
+        // Fetch users with error handling
+        let usersData = { users: [] };
+        try {
+          const usersResponse = await fetch("http://127.0.0.1:8000/api/user/");
+          if (usersResponse.ok) {
+            usersData = await usersResponse.json();
+          } else {
+            console.error("Failed to fetch users:", await usersResponse.text());
+          }
+        } catch (error) {
+          console.error("Error fetching users:", error);
+        }
+
+        // Fetch products with error handling
+        let productsData = { products: [] };
+        try {
+          const productsResponse = await fetch(
+            "http://127.0.0.1:8000/api/products/"
+          );
+          if (productsResponse.ok) {
+            productsData = await productsResponse.json();
+          } else {
+            console.error(
+              "Failed to fetch products:",
+              await productsResponse.text()
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching products:", error);
+        }
+
         setUsers(usersData.users || []);
         setProducts(productsData.products || []);
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error in fetchData:", error);
       }
     };
 
@@ -111,14 +144,16 @@ const Dashboard = () => {
   useEffect(() => {
     if (users.length > 0 || products.length > 0) {
       // Count active users (status = "1" and verified = true)
-      const activeUsers = users.filter(user => user.status === "1" && user.verified === true).length;
-      
+      const activeUsers = users.filter(
+        (user) => user.status === "1" && user.verified === true
+      ).length;
+
       // Count different stock levels
       let inStockCount = 0;
       let lowStockCount = 0;
       let outOfStockCount = 0;
 
-      products.forEach(product => {
+      products.forEach((product) => {
         if (product.qty <= 0) {
           outOfStockCount++;
         } else if (product.qty <= 10) {
@@ -130,26 +165,26 @@ const Dashboard = () => {
 
       // Update stats data
       setStatsData([
-        { 
-          title: "Total Users", 
-          value: users.length.toString(), 
-          change: "+12.5%" 
+        {
+          title: "Total Users",
+          value: users.length.toString(),
+          change: "+12.5%",
         },
-        { 
-          title: "Active Users", 
-          value: activeUsers.toString(), 
-          change: `${((activeUsers / users.length) * 100).toFixed(1)}%` 
+        {
+          title: "Active Users",
+          value: activeUsers.toString(),
+          change: `${((activeUsers / users.length) * 100).toFixed(1)}%`,
         },
-        { 
-          title: "In Stock Products", 
-          value: inStockCount.toString(), 
-          change: "+15.3%" 
+        {
+          title: "In Stock Products",
+          value: inStockCount.toString(),
+          change: "+15.3%",
         },
-        { 
-          title: "Low Stock Products", 
-          value: lowStockCount.toString(), 
+        {
+          title: "Low Stock Products",
+          value: lowStockCount.toString(),
           changeType: lowStockCount > 0 ? "warning" : "positive",
-          change: lowStockCount > 0 ? "Attention needed" : "All good" 
+          change: lowStockCount > 0 ? "Attention needed" : "All good",
         },
       ]);
     }
@@ -181,11 +216,11 @@ const Dashboard = () => {
     switch (activeMenu) {
       case "Analytics":
         return <Analytics />;
-      case 'Stock':
+      case "Stock":
         return <Stock />;
-      case 'News':
+      case "News":
         return <NewsAddScreen />;
-      case 'Users':
+      case "Users":
         return <User />;
       default:
         return <DashboardHome statsData={statsData} />;
@@ -204,13 +239,19 @@ const Dashboard = () => {
       setDropdownOpen(false);
     }
   };
-  
+
   const [user, setUser] = useState(null);
 
+  // In Dashboard.jsx, update the useEffect for user data:
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (storedUser && storedUser !== "undefined") {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+      }
+    } catch (error) {
+      console.error("Failed to parse user data from localStorage:", error);
     }
   }, []);
 
@@ -218,7 +259,7 @@ const Dashboard = () => {
     localStorage.removeItem("user"); // Clear user data
     window.location.href = "/login"; // Redirect to login page
   };
-  
+
   return (
     <div className="dashboard-layout">
       {/* Sidebar Overlay */}

@@ -1,42 +1,46 @@
 //Login.jsx
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Use for navigation after login
-import '../css/Login.css';
-import Onboarding from './Onboarding';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // Use for navigation after login
+import "../css/Login.css";
+import Onboarding from "./Onboarding";
 
 const AdminLogin = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const navigate = useNavigate(); // For navigation
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     try {
-      const response = await fetch('http://127.0.0.1:8000/api/user/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await fetch(
+        "http://127.0.0.1:8000/api/shopowner/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+        }
+      );
 
       const data = await response.json();
       console.log(data);
+      // In Login.jsx, modify the successful login handling:
       if (response.ok && data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user)); // Fix: use data.user instead of response.user
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.owner)); // Change to data.owner
         setIsLoggedIn(true);
-        navigate('/dashboard');
+        navigate("/dashboard");
       } else {
-        setError(data.detail || 'Invalid credentials');
+        setError(data.detail || "Invalid credentials");
       }
     } catch (error) {
-      setError('Failed to connect to the server');
+      setError("Failed to connect to the server");
     }
   };
 
