@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import '../css/SplashScreen.css';
 import { Navigate, useNavigate } from 'react-router-dom';
+import AppLogo from '../assets/Applogo.png'; // Import the logo
 
 const SplashScreen = () => {
   const [progress, setProgress] = useState(0);
@@ -29,6 +30,16 @@ const SplashScreen = () => {
 
       {/* Main Content */}
       <div className="center-content">
+        {/* Add the logo image with inline styles */}
+        <img 
+          src={AppLogo} 
+          alt="ScanSavvy Logo" 
+          style={{
+            width: '120px',
+            height: 'auto',
+            marginBottom: '20px'
+          }} 
+        />
         <h1 className="main-title">ScanSavvy</h1>
         <p className="subtitle">Where Virtual Meets Real Shopping</p>
 

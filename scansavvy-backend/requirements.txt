@@ -4,3 +4,4 @@ motor
 bcrypt
 python-dotenv
 pydantic
+PyJWT

@@ -43,7 +43,7 @@ async def login_shop_owner(shop_owner: ShopOwnerLogin):
         # Convert ObjectId to string before encoding in JWT
         token_data = {
             "owner_id": str(owner["_id"]), 
-            "shop_id": str(owner["shop_id"]),
+            "shop_id": str(owner["shop_id"]),  # Include shop_id in the token
             "exp": datetime.utcnow() + timedelta(hours=1)
         }
         
@@ -60,7 +60,7 @@ async def login_shop_owner(shop_owner: ShopOwnerLogin):
                 "id": str(owner["_id"]), 
                 "name": owner["name"], 
                 "email": owner["email"],
-                "shop_id": str(owner["shop_id"])
+                "shop_id": str(owner["shop_id"])  # Optionally include shop_id in the response
             }
         }
     

@@ -4,6 +4,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Stock from "./pages/Stock";
 import NewsAddScreen from "./pages/News";
+import Orders from "./pages/Orders";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard/>} />
         <Route path="/store" element={<Stock/>} />
         <Route path="/news" element={<NewsAddScreen />} />
+        <Route path="/orders" element={<Orders />} />
       </Routes>
     </BrowserRouter>
   );

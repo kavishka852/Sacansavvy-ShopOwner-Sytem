@@ -14,3 +14,5 @@ class Product(BaseModel):
     images: List[str]
     brand: str
     specifications: List[dict]
+    shop_id: str 
+    description: str  

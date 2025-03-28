@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom"; // Use for navigation after login
 import "../css/Login.css";
 import Onboarding from "./Onboarding";
+import AppLogo from "../assets/Applogo.png"; // Import the logo
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
@@ -53,7 +54,22 @@ const AdminLogin = () => {
       <div className="login-card">
         <div className="login-gradient-line"></div>
         <div className="login-content">
-          <h2 className="login-title">Admin Login</h2>
+          {/* Add logo at the top of the login form */}
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            marginBottom: '20px' 
+          }}>
+            <img 
+              src={AppLogo} 
+              alt="ScanSavvy Logo" 
+              style={{
+                width: '100px',
+                height: 'auto'
+              }} 
+            />
+          </div>
+          <h2 className="login-title">Shop Owner Login</h2>
           {error && <p className="error-message">{error}</p>}
           <form onSubmit={handleSubmit} className="login-form">
             <div className="input-wrapper">

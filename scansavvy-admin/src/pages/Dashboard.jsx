@@ -13,12 +13,13 @@ import {
   Menu,
   X,
   ChevronDown,
+  ShoppingBag
 } from "lucide-react";
 import Analytics from "./Analytics";
 import "../css/Dashboard.css";
 import Stock from "./Stock";
 import NewsAddScreen from "./News";
-import User from "./Users";
+import Orders from "./Orders";
 
 const DashboardHome = ({ statsData }) => (
   <>
@@ -206,7 +207,7 @@ const Dashboard = () => {
   const menuItems = [
     { title: "Dashboard", icon: Home },
     { title: "Analytics", icon: BarChart2 },
-    { title: "Users", icon: Users },
+    { title: "Orders", icon: ShoppingBag },
     { title: "Stock", icon: Store },
     { title: "News", icon: Calendar },
     { title: "Documents", icon: FileText },
@@ -220,8 +221,8 @@ const Dashboard = () => {
         return <Stock />;
       case "News":
         return <NewsAddScreen />;
-      case "Users":
-        return <User />;
+      case "Orders":
+        return <Orders />;
       default:
         return <DashboardHome statsData={statsData} />;
     }
@@ -271,7 +272,7 @@ const Dashboard = () => {
       <aside className={`sidebar ${isSidebarOpen ? "open" : "closed"}`}>
         <div className="sidebar-header">
           <div className="logo">
-            {isSidebarOpen && <span className="logo-text">AdminPro</span>}
+            {isSidebarOpen && <span className="logo-text">Shop Owner Pro</span>}
           </div>
           <button className="sidebar-toggle" onClick={toggleSidebar}>
             {isSidebarOpen ? <X size={20} /> : <Menu size={20} />}

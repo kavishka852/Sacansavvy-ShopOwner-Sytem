@@ -1,33 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit, Trash2, Filter, ArrowUpDown, Save, X, ChevronDown, ChevronUp } from 'lucide-react';
-// Import your CSS file in your actual project
+import { Search, Plus, Edit, Trash2, Filter, ArrowUpDown, X, ChevronDown, ChevronUp } from 'lucide-react';
 import '../css/Stock.css';
 
 const Stock = () => {
-  // State for products data
+  // State management
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // State for search query
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // State for form visibility
   const [showForm, setShowForm] = useState(false);
-  
-  // State for form mode (add or edit)
   const [formMode, setFormMode] = useState('add');
-  
-  // State for expanded product rows (to show images)
   const [expandedRows, setExpandedRows] = useState({});
-  
-  // State for product being edited or added
-  const [currentProduct, setCurrentProduct] = useState({
+  const [imageUrl, setImageUrl] = useState('');
+
+  // Default categories
+  const defaultCategories = ['Clothing', 'Footwear', 'Accessories', 'Electronics'];
+  const [availableCategories, setAvailableCategories] = useState(defaultCategories);
+
+  // Initial product state
+  const initialProductState = {
     title: '',
     subtitle: '',
     price: '',
     original_price: '',
-    category: 'Clothing',
+    category: defaultCategories[0],
     qty: '',
     color: '',
     brand: '',
@@ -35,43 +31,40 @@ const Stock = () => {
     discount: '0',
     images: [],
     specifications: [{ key: '', value: '' }]
-  });
+  };
 
-  // State for image URL input
-  const [imageUrl, setImageUrl] = useState('');
+  const [currentProduct, setCurrentProduct] = useState(initialProductState);
 
-  // Track available categories from the API
-  const [availableCategories, setAvailableCategories] = useState([]);
-  
-  // Categories for dropdown - initial defaults
-  const defaultCategories = ['Clothing', 'Footwear', 'Accessories', 'Electronics'];
-  
-  // Status options
-  const statusOptions = ['In Stock', 'Low Stock', 'Out of Stock'];
-
-  // Toggle expanded row
-  const toggleRowExpand = (productId) => {
-    setExpandedRows({
-      ...expandedRows,
-      [productId]: !expandedRows[productId]
-    });
+  // Authentication token retrieval
+  const getAuthToken = () => {
+    return localStorage.getItem('token'); // Change from 'authToken' to 'token'
   };
 
   // Fetch products from API
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://127.0.0.1:8000/api/products');
+      const token = getAuthToken();
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in.');
+      }
+
+      const response = await fetch('http://127.0.0.1:8000/api/products/', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
+
       const data = await response.json();
       
-      // Extract unique categories from the API response
-      const categories = [...new Set(data.products.map(product => product.category))];
-      setAvailableCategories(categories.length > 0 ? categories : defaultCategories);
-      
-      // Transform data to match our component's expected format
+      // Transform data to match component's expected format
       const transformedProducts = data.products.map(product => ({
         id: product._id,
         name: product.title,
@@ -90,33 +83,38 @@ const Stock = () => {
       }));
       
       setProducts(transformedProducts);
+      
+      // Update available categories
+      const categories = [...new Set(transformedProducts.map(p => p.category))];
+      setAvailableCategories(categories.length > 0 ? categories : defaultCategories);
+      
       setError(null);
     } catch (err) {
-      setError(`Failed to fetch products: ${err.message}`);
+      setError(err.message);
       console.error('Error fetching products:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Determine status based on stock quantity
-  const determineStatus = (qty) => {
-    if (qty <= 0) return 'Out of Stock';
-    if (qty <= 10) return 'Low Stock';
-    return 'In Stock';
-  };
-
-  // Create a new product - updated to match Product model
+  // Create a new product
   const createProduct = async (productData) => {
     try {
+      const token = getAuthToken();
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch('http://127.0.0.1:8000/api/products/', {
         method: 'POST',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           title: productData.title,
-          subtitle: productData.subtitle,
+          subtitle: productData.subtitle || '',
           price: parseFloat(productData.price),
           original_price: parseFloat(productData.original_price || productData.price),
           category: productData.category,
@@ -134,22 +132,28 @@ const Stock = () => {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       
-      // Refresh products list
-      fetchProducts();
+      await fetchProducts();
       return true;
     } catch (err) {
-      console.error('Error creating product:', err);
       setError(`Failed to create product: ${err.message}`);
+      console.error('Error creating product:', err);
       return false;
     }
   };
 
-  // Update a product - updated to match Product model
+  // Update an existing product
   const updateProduct = async (id, productData) => {
     try {
+      const token = getAuthToken();
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch(`http://127.0.0.1:8000/api/products/${id}`, {
         method: 'PUT',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -172,12 +176,11 @@ const Stock = () => {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       
-      // Refresh products list
-      fetchProducts();
+      await fetchProducts();
       return true;
     } catch (err) {
-      console.error('Error updating product:', err);
       setError(`Failed to update product: ${err.message}`);
+      console.error('Error updating product:', err);
       return false;
     }
   };
@@ -185,65 +188,50 @@ const Stock = () => {
   // Delete a product
   const deleteProduct = async (id) => {
     try {
+      const token = getAuthToken();
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch(`http://127.0.0.1:8000/api/products/${id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
       
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       
-      // Refresh products list
-      fetchProducts();
+      await fetchProducts();
       return true;
     } catch (err) {
-      console.error('Error deleting product:', err);
       setError(`Failed to delete product: ${err.message}`);
+      console.error('Error deleting product:', err);
       return false;
     }
   };
 
-  // Load products on component mount
-  useEffect(() => {
-    fetchProducts();
-  }, []);
-
-  // Filter products based on search query
-  const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    product.brand?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Add specification field
-  const addSpecification = () => {
-    setCurrentProduct({
-      ...currentProduct,
-      specifications: [...currentProduct.specifications, { key: '', value: '' }]
-    });
+  // Utility Functions
+  const determineStatus = (qty) => {
+    if (qty <= 0) return 'Out of Stock';
+    if (qty <= 10) return 'Low Stock';
+    return 'In Stock';
   };
 
-  // Update specification
-  const updateSpecification = (index, field, value) => {
-    const updatedSpecs = [...currentProduct.specifications];
-    updatedSpecs[index][field] = value;
-    setCurrentProduct({
-      ...currentProduct,
-      specifications: updatedSpecs
-    });
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'In Stock': return 'status-in-stock';
+      case 'Low Stock': return 'status-low-stock';
+      case 'Out of Stock': return 'status-out-of-stock';
+      default: return '';
+    }
   };
 
-  // Remove specification
-  const removeSpecification = (index) => {
-    const updatedSpecs = [...currentProduct.specifications];
-    updatedSpecs.splice(index, 1);
-    setCurrentProduct({
-      ...currentProduct,
-      specifications: updatedSpecs
-    });
-  };
-
-  // Add image URL to the images array
+  // Image and Specification Handlers
   const addImageUrl = () => {
     if (imageUrl.trim()) {
       setCurrentProduct({
@@ -254,7 +242,6 @@ const Stock = () => {
     }
   };
 
-  // Remove image from the images array
   const removeImage = (index) => {
     const updatedImages = [...currentProduct.images];
     updatedImages.splice(index, 1);
@@ -264,30 +251,40 @@ const Stock = () => {
     });
   };
 
-  // Open form for adding a new product
+  const addSpecification = () => {
+    setCurrentProduct({
+      ...currentProduct,
+      specifications: [...currentProduct.specifications, { key: '', value: '' }]
+    });
+  };
+
+  const updateSpecification = (index, field, value) => {
+    const updatedSpecs = [...currentProduct.specifications];
+    updatedSpecs[index][field] = value;
+    setCurrentProduct({
+      ...currentProduct,
+      specifications: updatedSpecs
+    });
+  };
+
+  const removeSpecification = (index) => {
+    const updatedSpecs = [...currentProduct.specifications];
+    updatedSpecs.splice(index, 1);
+    setCurrentProduct({
+      ...currentProduct,
+      specifications: updatedSpecs
+    });
+  };
+
+  // Form Handlers
   const handleAddNew = () => {
     setFormMode('add');
-    setCurrentProduct({
-      title: '',
-      subtitle: '',
-      price: '',
-      original_price: '',
-      category: availableCategories[0] || 'Clothing',
-      qty: '',
-      color: '',
-      brand: '',
-      ratings: 0,
-      discount: '0',
-      images: [],
-      specifications: [{ key: '', value: '' }]
-    });
+    setCurrentProduct(initialProductState);
     setShowForm(true);
   };
 
-  // Open form for editing a product
   const handleEditProduct = (product) => {
     setFormMode('edit');
-    // Transform the product data to match the form structure
     setCurrentProduct({
       id: product.id,
       title: product.name,
@@ -301,12 +298,13 @@ const Stock = () => {
       discount: product.discount || '0',
       ratings: product.ratings || 0,
       images: product.images || [],
-      specifications: product.specifications?.length > 0 ? product.specifications : [{ key: '', value: '' }]
+      specifications: product.specifications?.length > 0 
+        ? product.specifications 
+        : [{ key: '', value: '' }]
     });
     setShowForm(true);
   };
 
-  // Handle saving product data (for both add and edit)
   const handleSaveProduct = async () => {
     if (!currentProduct.title || !currentProduct.price || !currentProduct.qty) {
       alert('Please fill in all required fields (Title, Price, and Quantity)');
@@ -323,49 +321,35 @@ const Stock = () => {
     
     if (success) {
       setShowForm(false);
-      // Reset form
-      setCurrentProduct({
-        title: '',
-        subtitle: '',
-        price: '',
-        original_price: '',
-        category: availableCategories[0] || 'Clothing',
-        qty: '',
-        color: '',
-        brand: '',
-        ratings: 0,
-        discount: '0',
-        images: [],
-        specifications: [{ key: '', value: '' }]
-      });
+      setCurrentProduct(initialProductState);
     }
   };
 
-  // Handle deleting a product
   const handleDeleteProduct = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
       await deleteProduct(id);
     }
   };
 
-  // Determine status class
-  const getStatusClass = (status) => {
-    switch (status) {
-      case 'In Stock':
-        return 'status-in-stock';
-      case 'Low Stock':
-        return 'status-low-stock';
-      case 'Out of Stock':
-        return 'status-out-of-stock';
-      default:
-        return '';
-    }
+  // Toggle expanded row
+  const toggleRowExpand = (productId) => {
+    setExpandedRows({
+      ...expandedRows,
+      [productId]: !expandedRows[productId]
+    });
   };
 
-  // Check if category is in predefined list
-  const isCategoryPredefined = (category) => {
-    return availableCategories.includes(category);
-  };
+  // Filter products based on search query
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.brand?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Load products on component mount
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   // Calculate discount percentage
   const calculateDiscount = () => {
