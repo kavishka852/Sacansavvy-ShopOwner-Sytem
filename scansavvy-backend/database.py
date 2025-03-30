@@ -14,7 +14,7 @@ database = client[MONGO_DB]
 shopowner_collection = database.get_collection("shop_owner")
 users_collection = database.get_collection("users")
 products_collection = database.get_collection("products")
-payments_collection = database.get_collection("payments")
+payments_collection = database.get_collection("payments") #order tabel
 news_collection = database.get_collection("news")
 
 
