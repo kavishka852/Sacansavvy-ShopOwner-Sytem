@@ -109,3 +109,49 @@ async def get_all_payments():
         return {"payments": [serialize_mongodb_doc(payment) for payment in payments]}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error retrieving all payments: {str(e)}")
+
+# Add this to payment_routes.py
+
+@router.get("/shop-orders/{status}")
+async def get_filtered_shop_orders(status: str, shop_id: str = Depends(get_current_shop_id)):
+    try:
+        # Validate status
+        valid_statuses = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"]
+        if status != "All" and status not in valid_statuses:
+            raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)} or All")
+        
+        # Find all products for this shop
+        shop_products = list(products_collection.find({"shop_id": ObjectId(shop_id)}))
+        product_ids = [product["_id"] for product in shop_products]
+        product_ids_set = set(product_ids)
+
+        # Base query
+        query = {
+            "products": {
+                "$elemMatch": {
+                    "product_id": {"$in": product_ids}
+                }
+            }
+        }
+        
+        # Add status filter if not "All"
+        if status != "All":
+            query["status"] = status
+            
+        # Find all payments that match the query
+        payments = list(payments_collection.find(query))
+
+        if not payments:
+            return {"message": f"No orders with status '{status}' found for this shop."}
+            
+        # Remove products from each payment that are not part of this shop
+        for payment in payments:
+            if "products" in payment:
+                payment["products"] = [
+                    prod for prod in payment["products"]
+                    if prod.get("product_id") in product_ids_set
+                ]
+
+        return {"payments": [serialize_mongodb_doc(payment) for payment in payments]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error getting filtered payments: {str(e)}")

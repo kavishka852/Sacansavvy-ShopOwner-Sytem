@@ -11,120 +11,163 @@ const Orders = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState('All');
+  const [productDetails, setProductDetails] = useState({});
 
-  
+  // Get token from localStorage
+  const getToken = () => {
+    return localStorage.getItem('token');
+  };
+
   // Status options
   const statusOptions = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
   const filterOptions = ['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
-  // Fetch orders from API
-//   const fetchOrders = async () => {
-//     setIsLoading(true);
-//     try {
-//       const response = await fetch('http://127.0.0.1:8000/api/orders');
-//       if (!response.ok) {
-//         throw new Error(`HTTP error! Status: ${response.status}`);
-//       }
-//       const data = await response.json();
-//       setOrders(data.orders || []);
-//       setFilteredOrders(data.orders || []);
-//       setIsLoading(false);
-//     } catch (error) {
-//       console.error('Error fetching orders:', error);
-//       setErrorMessage('Failed to load orders. Please try again later.');
-//       setIsLoading(false);
-//     }
-//   };
+  // Fetch product details for a given product ID
+  const fetchProductDetails = async (productId) => {
+    try {
+      const token = getToken();
+      
+      if (!token) {
+        return null;
+      }
+      
+      const response = await fetch(`http://127.0.0.1:8000/api/products/${productId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        return null;
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error(`Error fetching product details for ${productId}:`, error);
+      return null;
+    }
+  };
+
+  // Fetch orders from API with specific status if filter is applied
+  const fetchOrders = async (status = 'All') => {
+    setIsLoading(true);
+    try {
+      const token = getToken();
+      
+      if (!token) {
+        setErrorMessage('Authentication required. Please log in again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Using the appropriate endpoint based on filter
+      const endpoint = status === 'All' 
+        ? 'http://127.0.0.1:8000/api/payment/shop-orders'
+        : `http://127.0.0.1:8000/api/payment/shop-orders/${status}`;
+      
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.status === 401) {
+        setErrorMessage('Session expired. Please log in again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.message && (data.message === "No orders found for this shop." || 
+                           data.message.includes("No orders with status"))) {
+        setOrders([]);
+        setFilteredOrders([]);
+        setIsLoading(false);
+        return;
+      }
+      
+      const paymentsData = data.payments || [];
+      
+      // Create a temporary product details cache
+      const tempProductDetails = { ...productDetails };
+      
+      // Fetch product details for each product in each payment
+      for (const payment of paymentsData) {
+        if (payment.products && payment.products.length > 0) {
+          for (const product of payment.products) {
+            if (product.product_id && !tempProductDetails[product.product_id]) {
+              // Check if product has name, if not, fetch it
+              if (!product.name) {
+                const productDetail = await fetchProductDetails(product.product_id);
+                if (productDetail) {
+                  tempProductDetails[product.product_id] = productDetail;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Update the product details state
+      setProductDetails(tempProductDetails);
+      setOrders(paymentsData);
+      setFilteredOrders(paymentsData);
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setErrorMessage('Failed to load orders. Please try again later.');
+      setIsLoading(false);
+    }
+  };
 
   // Initial data fetch
   useEffect(() => {
     fetchOrders();
   }, []);
 
-const mockOrders = [
-    {
-      _id: '1001',
-      orderId: 'ORD-2023-1001',
-      productName: 'Premium Wireless Headphones',
-      date: '2023-03-15T08:30:00',
-      customerName: 'John Doe',
-      totalAmount: 129.99,
-      paymentMethod: 'Credit Card',
-      status: 'Delivered'
-    },
-    {
-      _id: '1002',
-      orderId: 'ORD-2023-1002',
-      productName: 'Smart Fitness Watch',
-      date: '2023-03-16T10:15:00',
-      customerName: 'Sarah Johnson',
-      totalAmount: 89.95,
-      paymentMethod: 'PayPal',
-      status: 'Shipped'
-    },
-    {
-      _id: '1003',
-      orderId: 'ORD-2023-1003',
-      productName: 'Ultra HD Monitor',
-      date: '2023-03-16T14:45:00',
-      customerName: 'Michael Chen',
-      totalAmount: 349.99,
-      paymentMethod: 'Credit Card',
-      status: 'Processing'
-    },
-    {
-      _id: '1004',
-      orderId: 'ORD-2023-1004',
-      productName: 'Bluetooth Speaker',
-      date: '2023-03-17T09:20:00',
-      customerName: 'Emma Wilson',
-      totalAmount: 59.99,
-      paymentMethod: 'Debit Card',
-      status: 'Pending'
-    },
-    {
-      _id: '1005',
-      orderId: 'ORD-2023-1005',
-      productName: 'Mechanical Keyboard',
-      date: '2023-03-18T11:30:00',
-      customerName: 'David Brown',
-      totalAmount: 149.95,
-      paymentMethod: 'Credit Card',
-      status: 'Cancelled'
-    }
-  ];
-  
-  // Replace the fetchOrders function with this for testing:
-  const fetchOrders = async () => {
-    setIsLoading(true);
-    // Simulate API delay
-    setTimeout(() => {
-      setOrders(mockOrders);
-      setFilteredOrders(mockOrders);
-      setIsLoading(false);
-    }, 1000);
-  };
-
-  // Filter orders based on search term and status filter
+  // Filter orders based on search term
   useEffect(() => {
-    let filtered = orders;
-    
-    // Apply status filter
-    if (selectedFilter !== 'All') {
-      filtered = filtered.filter(order => order.status === selectedFilter);
+    if (searchTerm.trim() === '') {
+      setFilteredOrders(orders);
+      return;
     }
     
-    // Apply search term filter
-    if (searchTerm.trim() !== '') {
-      filtered = filtered.filter(order => 
-        order.orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    const filtered = orders.filter(order => {
+      // Check order ID
+      const orderIdMatch = order.transaction_id && 
+        order.transaction_id.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Check product names, using both local data and fetched product details
+      const productMatch = order.products && order.products.some(product => {
+        // Check if product has name directly
+        if (product.name && product.name.toLowerCase().includes(searchTerm.toLowerCase())) {
+          return true;
+        }
+        
+        // Check product details if we have them
+        const productDetail = productDetails[product.product_id];
+        return productDetail && 
+          productDetail.name && 
+          productDetail.name.toLowerCase().includes(searchTerm.toLowerCase());
+      });
+      
+      // Check shipping address
+      const addressMatch = order.shipping_address && 
+        order.shipping_address.address && 
+        order.shipping_address.address.toLowerCase().includes(searchTerm.toLowerCase());
+        
+      return orderIdMatch || productMatch || addressMatch;
+    });
     
     setFilteredOrders(filtered);
-  }, [searchTerm, orders, selectedFilter]);
+  }, [searchTerm, orders, productDetails]);
 
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
@@ -143,17 +186,33 @@ const mockOrders = [
     setStatusDropdownOpen(null);
     
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/orders/${orderId}/status`, {
+      const token = getToken();
+      
+      if (!token) {
+        setErrorMessage('Authentication required. Please log in again.');
+        return;
+      }
+      
+      // Using the update-status endpoint from your payment_routes.py
+      const response = await fetch(`http://127.0.0.1:8000/api/payment/update-status/${orderId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ status: newStatus })
       });
       
+      if (response.status === 401) {
+        setErrorMessage('Session expired. Please log in again.');
+        return;
+      }
+      
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
+      
+      const data = await response.json();
       
       // Update local state
       setOrders(orders.map(order => 
@@ -171,14 +230,16 @@ const mockOrders = [
 
   const handleFilterChange = (filter) => {
     setSelectedFilter(filter);
+    // Fetch orders with the selected filter
+    fetchOrders(filter);
   };
 
-  // Format currency
+  // Format currency to LKR
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-LK', {
       style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+      currency: 'LKR'
+    }).format(amount / 100); // Assuming amount is stored in cents
   };
 
   // Format date
@@ -196,6 +257,35 @@ const mockOrders = [
       case 'Cancelled': return 'status-cancelled';
       default: return '';
     }
+  };
+
+  // Get product names for an order
+  const getProductNames = (products) => {
+    if (!products || products.length === 0) return 'N/A';
+    
+    return products.map(product => {
+      // First check if product has name property
+      if (product.name) {
+        return product.name;
+      }
+      
+      // If not, check our productDetails cache
+      const productDetail = productDetails[product.product_id];
+      if (productDetail && productDetail.name) {
+        return productDetail.name;
+      }
+      
+      // If we still don't have a name, return the product ID as fallback
+      return `Product ID: ${product.product_id}`;
+    }).join(', ');
+  };
+
+  // Get customer name from shipping address
+  const getCustomerName = (order) => {
+    if (order.shipping_address) {
+      return order.shipping_address.name || 'N/A';
+    }
+    return 'N/A';
   };
 
   return (
@@ -273,9 +363,9 @@ const mockOrders = [
               <thead>
                 <tr>
                   <th>Order ID</th>
-                  <th>Product Name</th>
+                  <th>Products</th>
                   <th>Date</th>
-                  <th>Customer Name</th>
+                  <th>Address</th>
                   <th>Total Amount</th>
                   <th>Payment Method</th>
                   <th>Status</th>
@@ -285,12 +375,12 @@ const mockOrders = [
                 {filteredOrders.length > 0 ? (
                   filteredOrders.map(order => (
                     <tr key={order._id}>
-                      <td>{order.orderId}</td>
-                      <td>{order.productName}</td>
-                      <td>{formatDate(order.date)}</td>
-                      <td>{order.customerName}</td>
-                      <td>{formatCurrency(order.totalAmount)}</td>
-                      <td>{order.paymentMethod}</td>
+                      <td>{order.transaction_id || order._id}</td>
+                      <td>{getProductNames(order.products)}</td>
+                      <td>{order.created_at ? formatDate(order.created_at) : 'N/A'}</td>
+                      <td>{order.shipping_address ? `${order.shipping_address.city}, ${order.shipping_address.country}` : 'N/A'}</td>
+                      <td>{formatCurrency(order.amount)}</td>
+                      <td>{order.payment_method || 'N/A'}</td>
                       <td>
                         <div className="status-dropdown-container">
                           <div 
