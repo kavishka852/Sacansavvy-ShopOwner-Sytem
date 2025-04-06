@@ -132,3 +132,5 @@ async def delete_product(product_id: str, shop_id: str = Depends(get_current_sho
         return {"message": "Product deleted successfully"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid product ID format: {str(e)}")
+    
+
