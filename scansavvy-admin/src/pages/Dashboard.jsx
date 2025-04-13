@@ -1,31 +1,146 @@
 import React, { useState, useEffect } from "react";
 import {
   Home,
-  Users,
-  BarChart2,
-  Settings,
   Bell,
   Search,
-  MessageSquare,
   Calendar,
   FileText,
   Store,
   Menu,
   X,
   ChevronDown,
-  ShoppingBag
+  ShoppingBag,
+  Plus,
+  Trash2,
 } from "lucide-react";
-import Analytics from "./Analytics";
 import "../css/Dashboard.css";
 import Stock from "./Stock";
 import NewsAddScreen from "./News";
 import Orders from "./Orders";
+import RecentActivity from "./RecentActivity";
+import SalesPredictionChart from "./SalesPredictionChart";
+import RealTimeClock from "./RealTimeClock";
+import "../css/RealTimeClock.css";
+import FancyRealTimeClock from "./FancyRealTimeClock";
+import "../css/FancyRealTimeClock.css";
+import PrintableDocuments from "./PrintableDocuments";
 
-const DashboardHome = ({ statsData }) => (
+// Create a new TaskList component for managing todos
+const TaskList = () => {
+  const [tasks, setTasks] = useState(() => {
+    const savedTasks = localStorage.getItem('tasks');
+    return savedTasks ? JSON.parse(savedTasks) : [
+      { id: 1, text: "Process pending orders", completed: false, date: "Today" },
+      { id: 2, text: "Update inventory", completed: false, date: "Today" },
+      { id: 3, text: "Review sales reports", completed: false, date: "Tomorrow" }
+    ];
+  });
+  
+  const [newTask, setNewTask] = useState("");
+  const [newTaskDate, setNewTaskDate] = useState("Today");
+
+  useEffect(() => {
+    // Save tasks to localStorage whenever they change
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }, [tasks]);
+
+  const addTask = (e) => {
+    e.preventDefault();
+    if (newTask.trim() === "") return;
+    
+    const task = {
+      id: Date.now(),
+      text: newTask,
+      completed: false,
+      date: newTaskDate
+    };
+    
+    setTasks([...tasks, task]);
+    setNewTask("");
+  };
+
+  const toggleTaskCompletion = (id) => {
+    setTasks(tasks.map(task => 
+      task.id === id ? { ...task, completed: !task.completed } : task
+    ));
+  };
+
+  const deleteTask = (id) => {
+    setTasks(tasks.filter(task => task.id !== id));
+  };
+
+  return (
+    <div className="grid-item tasks">
+      <h2>Upcoming Tasks</h2>
+      
+      <form onSubmit={addTask} className="add-task-form">
+        <div className="task-input-container">
+          <input
+            type="text"
+            value={newTask}
+            onChange={(e) => setNewTask(e.target.value)}
+            placeholder="Add a new task..."
+            className="task-input"
+          />
+          
+          <select 
+            value={newTaskDate}
+            onChange={(e) => setNewTaskDate(e.target.value)}
+            className="task-date-select"
+          >
+            <option value="Today">Today</option>
+            <option value="Tomorrow">Tomorrow</option>
+            <option value="This week">This week</option>
+            <option value="Next week">Next week</option>
+          </select>
+          
+          <button type="submit" className="add-task-btn">
+            <Plus size={16} />
+          </button>
+        </div>
+      </form>
+      
+      <div className="task-list">
+        {tasks.map((task) => (
+          <div key={task.id} className={`task-item ${task.completed ? 'completed' : ''}`}>
+            <div className="task-checkbox">
+              <input 
+                type="checkbox" 
+                checked={task.completed}
+                onChange={() => toggleTaskCompletion(task.id)}
+                id={`task-${task.id}`}
+              />
+              <label htmlFor={`task-${task.id}`} className="task-label">
+                {task.text}
+              </label>
+            </div>
+            <div className="task-actions">
+              <span className="task-date">{task.date}</span>
+              <button 
+                className="delete-task-btn"
+                onClick={() => deleteTask(task.id)}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Update the DashboardHome component to include the updated TaskList
+const DashboardHome = ({ statsData, orders, onCardClick }) => (
   <>
     <div className="stats-grid">
       {statsData.map((stat, index) => (
-        <div key={index} className="stat-card">
+        <div
+          key={index}
+          className="stat-card"
+          onClick={() => onCardClick(stat.redirectTo)}
+          style={{ cursor: "pointer" }}
+        >
           <div className="stat-header">
             <h3>{stat.title}</h3>
             <span className={`stat-change ${stat.changeType || "positive"}`}>
@@ -39,37 +154,12 @@ const DashboardHome = ({ statsData }) => (
 
     <div className="main-grid">
       <div className="grid-item chart">
-        <h2>Revenue Overview</h2>
-        <div className="chart-placeholder">[Chart Component Would Go Here]</div>
+        <SalesPredictionChart />
       </div>
 
-      <div className="grid-item recent-activity">
-        <h2>Recent Activity</h2>
-        <div className="activity-list">
-          {[1, 2, 3, 4].map((item) => (
-            <div key={item} className="activity-item">
-              <div className="activity-icon">🔔</div>
-              <div className="activity-details">
-                <p>New user registration</p>
-                <span>5 minutes ago</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <RecentActivity orders={orders} />
 
-      <div className="grid-item tasks">
-        <h2>Upcoming Tasks</h2>
-        <div className="task-list">
-          {[1, 2, 3].map((item) => (
-            <div key={item} className="task-item">
-              <input type="checkbox" />
-              <span>Review team performance</span>
-              <span className="task-date">Today</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <TaskList />
     </div>
   </>
 );
@@ -79,48 +169,79 @@ const Dashboard = () => {
   const [activeMenu, setActiveMenu] = useState("Dashboard");
   const [isDropdownOpen, setDropdownOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [users, setUsers] = useState([]);
   const [products, setProducts] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [recentActivityCount, setRecentActivityCount] = useState(0);
   const [statsData, setStatsData] = useState([
-    // { title: "Total Users", value: "0", change: "0%" },
-    // { title: "Active Users", value: "0", change: "0%" },
-    // { title: "In Stock Products", value: "0", change: "0%" },
-    // { title: "Low Stock Products", value: "0", change: "0%" },
+    {
+      title: "Total Orders",
+      value: "Loading...",
+      change: "-",
+      redirectTo: "Orders",
+    },
+    {
+      title: "Pending Orders",
+      value: "Loading...",
+      change: "-",
+      redirectTo: "Orders",
+    },
+    {
+      title: "In Stock Products",
+      value: "Loading...",
+      change: "-",
+      redirectTo: "Stock",
+    },
+    {
+      title: "Low Stock Products",
+      value: "Loading...",
+      change: "-",
+      redirectTo: "Stock",
+    },
   ]);
+  const [token, setToken] = useState("");
+  const [user, setUser] = useState(null);
 
-  // Fetch users and products data
+  // Get user data and token from localStorage
   useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem("user");
+      const storedToken = localStorage.getItem("token");
+
+      if (storedUser && storedUser !== "undefined") {
+        const userData = JSON.parse(storedUser);
+        setUser(userData);
+      }
+
+      if (storedToken) {
+        setToken(storedToken);
+      }
+    } catch (error) {
+      console.error("Failed to parse user data from localStorage:", error);
+    }
+  }, []);
+
+  // Fetch orders and products data with auth token
+  useEffect(() => {
+    // Don't fetch if no token is available
+    if (!token) return;
+
     const fetchData = async () => {
       try {
-        // Show loading state or placeholder data initially
-        setStatsData([
-          { title: "Total Users", value: "Loading...", change: "-" },
-          { title: "Active Users", value: "Loading...", change: "-" },
-          { title: "In Stock Products", value: "Loading...", change: "-" },
-          { title: "Low Stock Products", value: "Loading...", change: "-" },
-        ]);
+        // Set up auth headers
+        const headers = {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        };
 
-        // Fetch users with error handling
-        let usersData = { users: [] };
-        try {
-          const usersResponse = await fetch("http://127.0.0.1:8000/api/user/");
-          if (usersResponse.ok) {
-            usersData = await usersResponse.json();
-          } else {
-            console.error("Failed to fetch users:", await usersResponse.text());
-          }
-        } catch (error) {
-          console.error("Error fetching users:", error);
-        }
-
-        // Fetch products with error handling
-        let productsData = { products: [] };
+        // Fetch products with authentication
         try {
           const productsResponse = await fetch(
-            "http://127.0.0.1:8000/api/products/"
+            "http://127.0.0.1:8000/api/products/",
+            { headers }
           );
           if (productsResponse.ok) {
-            productsData = await productsResponse.json();
+            const productsData = await productsResponse.json();
+            setProducts(productsData.products || []);
           } else {
             console.error(
               "Failed to fetch products:",
@@ -131,65 +252,111 @@ const Dashboard = () => {
           console.error("Error fetching products:", error);
         }
 
-        setUsers(usersData.users || []);
-        setProducts(productsData.products || []);
+        // Fetch all orders for this shop with authentication
+        try {
+          const ordersResponse = await fetch(
+            "http://127.0.0.1:8000/api/payment/shop-orders",
+            { headers }
+          );
+          if (ordersResponse.ok) {
+            const ordersData = await ordersResponse.json();
+            if (ordersData.payments) {
+              setOrders(ordersData.payments);
+              
+              // Count recent activities (orders that should appear in the RecentActivity component)
+              // Typically this would be recent orders, within a few days
+              if (ordersData.payments.length > 0) {
+                // Calculate orders from the last 7 days (or your preferred timeframe for "recent")
+                const recentTimeframe = new Date();
+                recentTimeframe.setDate(recentTimeframe.getDate() - 7);
+                
+                const recentOrders = ordersData.payments.filter(order => {
+                  if (order.created_at) {
+                    const orderDate = new Date(order.created_at);
+                    return orderDate > recentTimeframe;
+                  }
+                  return false;
+                });
+                
+                setRecentActivityCount(recentOrders.length);
+              } else {
+                setRecentActivityCount(0);
+              }
+            } else if (ordersData.message) {
+              console.log(ordersData.message);
+              setOrders([]);
+              setRecentActivityCount(0);
+            }
+          } else {
+            console.error(
+              "Failed to fetch orders:",
+              await ordersResponse.text()
+            );
+          }
+        } catch (error) {
+          console.error("Error fetching orders:", error);
+        }
       } catch (error) {
         console.error("Error in fetchData:", error);
       }
     };
 
     fetchData();
-  }, []);
+  }, [token]);
 
   // Calculate stats based on fetched data
   useEffect(() => {
-    if (users.length > 0 || products.length > 0) {
-      // Count active users (status = "1" and verified = true)
-      const activeUsers = users.filter(
-        (user) => user.status === "1" && user.verified === true
-      ).length;
+    // Count different stock levels
+    let inStockCount = 0;
+    let lowStockCount = 0;
 
-      // Count different stock levels
-      let inStockCount = 0;
-      let lowStockCount = 0;
-      let outOfStockCount = 0;
+    products.forEach((product) => {
+      if (product.qty <= 0) {
+        // Out of stock
+      } else if (product.qty <= 10) {
+        lowStockCount++;
+      } else {
+        inStockCount++;
+      }
+    });
 
-      products.forEach((product) => {
-        if (product.qty <= 0) {
-          outOfStockCount++;
-        } else if (product.qty <= 10) {
-          lowStockCount++;
-        } else {
-          inStockCount++;
-        }
-      });
+    
+    // Count total and pending orders
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter(
+      (order) => order.status === "Pending"
+    ).length;
 
-      // Update stats data
-      setStatsData([
-        {
-          title: "Total Users",
-          value: users.length.toString(),
-          change: "+12.5%",
-        },
-        {
-          title: "Active Users",
-          value: activeUsers.toString(),
-          change: `${((activeUsers / users.length) * 100).toFixed(1)}%`,
-        },
-        {
-          title: "In Stock Products",
-          value: inStockCount.toString(),
-          change: "+15.3%",
-        },
-        {
-          title: "Low Stock Products",
-          value: lowStockCount.toString(),
-          changeType: lowStockCount > 0 ? "warning" : "positive",
-          change: lowStockCount > 0 ? "Attention needed" : "All good",
-        },
-      ]);
-    }
-  }, [users, products]);
+    // Update stats data
+    setStatsData([
+      {
+        title: "Total Orders",
+        value: totalOrders.toString(),
+        change: totalOrders ? "+15.3%" : "No change",
+        redirectTo: "Orders",
+      },
+      {
+        title: "Pending Orders",
+        value: pendingOrders.toString(),
+        changeType: pendingOrders > 5 ? "warning" : "positive",
+        change: pendingOrders > 5 ? "Attention needed" : "All good",
+        redirectTo: "Orders",
+      },
+      {
+        title: "In Stock Products",
+        value: inStockCount.toString(),
+        change: "+12.5%",
+        redirectTo: "Stock",
+      },
+      {
+        title: "Low Stock Products",
+        value: lowStockCount.toString(),
+        changeType: lowStockCount > 0 ? "warning" : "positive",
+        change: lowStockCount > 0 ? "Attention needed" : "All good",
+        redirectTo: "Stock",
+      },
+    ]);
+  }, [products, orders]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -206,25 +373,35 @@ const Dashboard = () => {
 
   const menuItems = [
     { title: "Dashboard", icon: Home },
-    { title: "Analytics", icon: BarChart2 },
     { title: "Orders", icon: ShoppingBag },
     { title: "Stock", icon: Store },
     { title: "News", icon: Calendar },
     { title: "Documents", icon: FileText },
   ];
 
+  // Handle card click to navigate to appropriate page
+  const handleCardClick = (destination) => {
+    setActiveMenu(destination);
+  };
+
   const renderContent = () => {
     switch (activeMenu) {
-      case "Analytics":
-        return <Analytics />;
       case "Stock":
         return <Stock />;
       case "News":
         return <NewsAddScreen />;
       case "Orders":
         return <Orders />;
+      case "Documents":
+        return <PrintableDocuments />;
       default:
-        return <DashboardHome statsData={statsData} />;
+        return (
+          <DashboardHome
+            statsData={statsData}
+            orders={orders}
+            onCardClick={handleCardClick}
+          />
+        );
     }
   };
 
@@ -241,23 +418,9 @@ const Dashboard = () => {
     }
   };
 
-  const [user, setUser] = useState(null);
-
-  // In Dashboard.jsx, update the useEffect for user data:
-  useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser && storedUser !== "undefined") {
-        const userData = JSON.parse(storedUser);
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error("Failed to parse user data from localStorage:", error);
-    }
-  }, []);
-
   const handleLogout = () => {
-    localStorage.removeItem("user"); // Clear user data
+    localStorage.removeItem("user");
+    localStorage.removeItem("token"); // Clear token
     window.location.href = "/login"; // Redirect to login page
   };
 
@@ -311,15 +474,20 @@ const Dashboard = () => {
             </button>
           )}
 
-          <div className="search-bar">
-            <Search size={20} />
-            <input type="text" placeholder="Search..." />
-          </div>
+          <FancyRealTimeClock/>
 
           <div className="nav-actions">
-            <button className="action-button">
-              <Bell size={20} />
-              <span className="notification-badge">3</span>
+            <button 
+              className="action-button notification-btn"
+              onClick={() => setActiveMenu("Dashboard")}
+              title="Recent activities"
+            >
+              <div className="notification-icon-container">
+                <Bell size={20} />
+                {recentActivityCount > 0 && (
+                  <span className="notification-badge">{recentActivityCount}</span>
+                )}
+              </div>
             </button>
 
             <div className="user-menu">
@@ -339,8 +507,6 @@ const Dashboard = () => {
 
               {isDropdownOpen && (
                 <div className="dropdown-menu">
-                  <button>Profile</button>
-                  <button>Settings</button>
                   <button className="logout" onClick={handleLogout}>
                     Logout
                   </button>
@@ -365,5 +531,170 @@ const Dashboard = () => {
     </div>
   );
 };
+
+// Add this CSS to your Dashboard.css file
+const styles = `
+/* Notification styles */
+.notification-icon-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #f44336;
+  color: white;
+  border-radius: 50%;
+  min-width: 18px;
+  height: 18px;
+  font-size: 11px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.notification-btn {
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.notification-btn:hover {
+  transform: scale(1.1);
+}
+
+.action-button {
+  background: transparent;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-right: 10px;
+  border-radius: 50%;
+  transition: background-color 0.3s;
+}
+
+.action-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Task list styles */
+.task-list {
+  margin-top: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.task-item.completed .task-label {
+  text-decoration: line-through;
+  color: #999;
+}
+
+.task-checkbox {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.task-checkbox input[type="checkbox"] {
+  margin-right: 10px;
+}
+
+.task-label {
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.task-actions {
+  display: flex;
+  align-items: center;
+}
+
+.task-date {
+  font-size: 12px;
+  color: #888;
+  margin-right: 10px;
+}
+
+.delete-task-btn {
+  background: none;
+  border: none;
+  color: #d32f2f;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.delete-task-btn:hover {
+  opacity: 1;
+}
+
+.add-task-form {
+  margin-top: 15px;
+}
+
+.task-input-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.task-date-select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 13px;
+  background-color: white;
+}
+
+.add-task-btn {
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.add-task-btn:hover {
+  background-color: #3d8b40;
+}
+`;
 
 export default Dashboard;

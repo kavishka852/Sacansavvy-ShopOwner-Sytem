@@ -12,6 +12,10 @@ const Orders = () => {
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(null);
   const [selectedFilter, setSelectedFilter] = useState('All');
   const [productDetails, setProductDetails] = useState({});
+  const [orderCounts, setOrderCounts] = useState({
+    total: 0,
+    pending: 0
+  });
 
   // Get token from localStorage
   const getToken = () => {
@@ -47,6 +51,21 @@ const Orders = () => {
       console.error(`Error fetching product details for ${productId}:`, error);
       return null;
     }
+  };
+
+  // Update order counts
+  const updateOrderCounts = (ordersData) => {
+    if (!ordersData || !Array.isArray(ordersData)) {
+      setOrderCounts({ total: 0, pending: 0 });
+      return;
+    }
+    
+    const pendingCount = ordersData.filter(order => order.status === 'Pending').length;
+    setOrderCounts({
+      total: ordersData.length,
+      pending: pendingCount
+    });
+    console.log("Updated counts:", ordersData.length, pendingCount);
   };
 
   // Fetch orders from API with specific status if filter is applied
@@ -88,6 +107,7 @@ const Orders = () => {
                            data.message.includes("No orders with status"))) {
         setOrders([]);
         setFilteredOrders([]);
+        updateOrderCounts([]);
         setIsLoading(false);
         return;
       }
@@ -116,8 +136,35 @@ const Orders = () => {
       
       // Update the product details state
       setProductDetails(tempProductDetails);
-      setOrders(paymentsData);
-      setFilteredOrders(paymentsData);
+      
+      // If we're using a status filter other than 'All', we need to fetch all orders to get proper counts
+      if (status !== 'All') {
+        // Fetch all orders to get the correct count for pending, etc.
+        const allOrdersResponse = await fetch('http://127.0.0.1:8000/api/payment/shop-orders', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (allOrdersResponse.ok) {
+          const allOrdersData = await allOrdersResponse.json();
+          const allPaymentsData = allOrdersData.payments || [];
+          updateOrderCounts(allPaymentsData);
+          // Only update orders for the filtered view
+          setOrders(paymentsData);
+          setFilteredOrders(paymentsData);
+        } else {
+          // If can't get all orders, just use what we have
+          setOrders(paymentsData);
+          setFilteredOrders(paymentsData);
+          updateOrderCounts(paymentsData);
+        }
+      } else {
+        // For 'All' filter, we already have all the orders
+        setOrders(paymentsData);
+        setFilteredOrders(paymentsData);
+        updateOrderCounts(paymentsData);
+      }
       
       setIsLoading(false);
     } catch (error) {
@@ -215,12 +262,27 @@ const Orders = () => {
       const data = await response.json();
       
       // Update local state
-      setOrders(orders.map(order => 
+      const updatedOrders = orders.map(order => 
+        order._id === orderId ? { ...order, status: newStatus } : order
+      );
+      
+      setOrders(updatedOrders);
+      
+      // Also update filtered orders if the changed order is part of the filtered set
+      setFilteredOrders(filteredOrders.map(order => 
         order._id === orderId ? { ...order, status: newStatus } : order
       ));
       
+      // Update order counts
+      updateOrderCounts(updatedOrders);
+      
       setSuccessMessage(`Order status updated to ${newStatus}`);
       setTimeout(() => setSuccessMessage(''), 3000);
+      
+      // Refresh orders if we're currently filtering by status
+      if (selectedFilter !== 'All') {
+        fetchOrders(selectedFilter);
+      }
     } catch (error) {
       console.error('Error updating order status:', error);
       setErrorMessage('Failed to update order status. Please try again.');
@@ -239,7 +301,7 @@ const Orders = () => {
     return new Intl.NumberFormat('en-LK', {
       style: 'currency',
       currency: 'LKR'
-    }).format(amount / 100); // Assuming amount is stored in cents
+    }).format(amount); // Assuming amount is stored in cents
   };
 
   // Format date
@@ -299,11 +361,11 @@ const Orders = () => {
           <div className="header-stats">
             <div className="stat-item">
               <span className="stat-label">Total Orders:</span>
-              <span className="stat-value">{orders.length}</span>
+              <span className="stat-value">{orderCounts.total}</span>
             </div>
             <div className="stat-item">
               <span className="stat-label">Pending Orders:</span>
-              <span className="stat-value">{orders.filter(order => order.status === 'Pending').length}</span>
+              <span className="stat-value">{orderCounts.pending}</span>
             </div>
           </div>
         </div>

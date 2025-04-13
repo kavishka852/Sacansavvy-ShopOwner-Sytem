@@ -49,7 +49,12 @@ async def get_current_shop_id(token: str = Depends(oauth2_scheme)):
     try:
         # Decode the token to get the shop_id
         decoded_token = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        return decoded_token['shop_id']
+        shop_id = decoded_token['shop_id']
+        # Try to convert to ObjectId if it's a valid ObjectId string
+        try:
+            return ObjectId(shop_id)
+        except:
+            return shop_id  # Return as string if not a valid ObjectId
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
@@ -96,14 +101,27 @@ async def create_product(product: Product, shop_id: str = Depends(get_current_sh
 
 # Update a product for the logged-in shop owner
 @router.put("/{product_id}")
-async def update_product(product_id: str, product: Product, shop_id: str = Depends(get_current_shop_id)):
+async def update_product(product_id: str, product: Product, shop_id = Depends(get_current_shop_id)):
     try:
-        product_data = product.dict()
+        product_data = product.dict(exclude={"shop_id"})  # Exclude shop_id from the update
+        
+        # Try both ways - as ObjectId and as string
+        query = {"_id": ObjectId(product_id)}
+        
+        # Add shop_id check if it's available
+        if shop_id:
+            if isinstance(shop_id, ObjectId):
+                query["shop_id"] = shop_id
+            else:
+                # Try both as string and as ObjectId
+                query["$or"] = [{"shop_id": shop_id}, {"shop_id": str(shop_id)}]
+                
         updated_product = products_collection.find_one_and_update(
-            {"_id": ObjectId(product_id), "shop_id": shop_id},
+            query,
             {"$set": product_data},
             return_document=True
         )
+        
         if not updated_product:
             raise HTTPException(status_code=404, detail="Product not found or does not belong to this shop")
         
