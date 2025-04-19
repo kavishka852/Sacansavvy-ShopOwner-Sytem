@@ -18,61 +18,74 @@ import Stock from "./Stock";
 import NewsAddScreen from "./News";
 import Orders from "./Orders";
 import RecentActivity from "./RecentActivity";
-import SalesPredictionChart from "./SalesPredictionChart";
-import RealTimeClock from "./RealTimeClock";
-import "../css/RealTimeClock.css";
+import MonthlySalesChart from "./MonthlySalesChart";
 import FancyRealTimeClock from "./FancyRealTimeClock";
 import "../css/FancyRealTimeClock.css";
 import PrintableDocuments from "./PrintableDocuments";
+import StockPieChart from './StockPieChart';
 
 // Create a new TaskList component for managing todos
 const TaskList = () => {
   const [tasks, setTasks] = useState(() => {
-    const savedTasks = localStorage.getItem('tasks');
-    return savedTasks ? JSON.parse(savedTasks) : [
-      { id: 1, text: "Process pending orders", completed: false, date: "Today" },
-      { id: 2, text: "Update inventory", completed: false, date: "Today" },
-      { id: 3, text: "Review sales reports", completed: false, date: "Tomorrow" }
-    ];
+    const savedTasks = localStorage.getItem("tasks");
+    return savedTasks
+      ? JSON.parse(savedTasks)
+      : [
+          {
+            id: 1,
+            text: "Process pending orders",
+            completed: false,
+            date: "Today",
+          },
+          { id: 2, text: "Update inventory", completed: false, date: "Today" },
+          {
+            id: 3,
+            text: "Review sales reports",
+            completed: false,
+            date: "Tomorrow",
+          },
+        ];
   });
-  
+
   const [newTask, setNewTask] = useState("");
   const [newTaskDate, setNewTaskDate] = useState("Today");
 
   useEffect(() => {
     // Save tasks to localStorage whenever they change
-    localStorage.setItem('tasks', JSON.stringify(tasks));
+    localStorage.setItem("tasks", JSON.stringify(tasks));
   }, [tasks]);
 
   const addTask = (e) => {
     e.preventDefault();
     if (newTask.trim() === "") return;
-    
+
     const task = {
       id: Date.now(),
       text: newTask,
       completed: false,
-      date: newTaskDate
+      date: newTaskDate,
     };
-    
+
     setTasks([...tasks, task]);
     setNewTask("");
   };
 
   const toggleTaskCompletion = (id) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { ...task, completed: !task.completed } : task
-    ));
+    setTasks(
+      tasks.map((task) =>
+        task.id === id ? { ...task, completed: !task.completed } : task
+      )
+    );
   };
 
   const deleteTask = (id) => {
-    setTasks(tasks.filter(task => task.id !== id));
+    setTasks(tasks.filter((task) => task.id !== id));
   };
 
   return (
     <div className="grid-item tasks">
       <h2>Upcoming Tasks</h2>
-      
+
       <form onSubmit={addTask} className="add-task-form">
         <div className="task-input-container">
           <input
@@ -82,8 +95,8 @@ const TaskList = () => {
             placeholder="Add a new task..."
             className="task-input"
           />
-          
-          <select 
+
+          <select
             value={newTaskDate}
             onChange={(e) => setNewTaskDate(e.target.value)}
             className="task-date-select"
@@ -93,19 +106,22 @@ const TaskList = () => {
             <option value="This week">This week</option>
             <option value="Next week">Next week</option>
           </select>
-          
+
           <button type="submit" className="add-task-btn">
             <Plus size={16} />
           </button>
         </div>
       </form>
-      
+
       <div className="task-list">
         {tasks.map((task) => (
-          <div key={task.id} className={`task-item ${task.completed ? 'completed' : ''}`}>
+          <div
+            key={task.id}
+            className={`task-item ${task.completed ? "completed" : ""}`}
+          >
             <div className="task-checkbox">
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 checked={task.completed}
                 onChange={() => toggleTaskCompletion(task.id)}
                 id={`task-${task.id}`}
@@ -116,7 +132,7 @@ const TaskList = () => {
             </div>
             <div className="task-actions">
               <span className="task-date">{task.date}</span>
-              <button 
+              <button
                 className="delete-task-btn"
                 onClick={() => deleteTask(task.id)}
               >
@@ -130,8 +146,7 @@ const TaskList = () => {
   );
 };
 
-// Update the DashboardHome component to include the updated TaskList
-const DashboardHome = ({ statsData, orders, onCardClick }) => (
+const DashboardHome = ({ statsData, orders, onCardClick, token }) => (
   <>
     <div className="stats-grid">
       {statsData.map((stat, index) => (
@@ -153,9 +168,10 @@ const DashboardHome = ({ statsData, orders, onCardClick }) => (
     </div>
 
     <div className="main-grid">
-      <div className="grid-item chart">
-        <SalesPredictionChart />
-      </div>
+      
+      <MonthlySalesChart token={token} />
+
+      <StockPieChart token={token} />
 
       <RecentActivity orders={orders} />
 
@@ -262,22 +278,22 @@ const Dashboard = () => {
             const ordersData = await ordersResponse.json();
             if (ordersData.payments) {
               setOrders(ordersData.payments);
-              
+
               // Count recent activities (orders that should appear in the RecentActivity component)
               // Typically this would be recent orders, within a few days
               if (ordersData.payments.length > 0) {
                 // Calculate orders from the last 7 days (or your preferred timeframe for "recent")
                 const recentTimeframe = new Date();
                 recentTimeframe.setDate(recentTimeframe.getDate() - 7);
-                
-                const recentOrders = ordersData.payments.filter(order => {
+
+                const recentOrders = ordersData.payments.filter((order) => {
                   if (order.created_at) {
                     const orderDate = new Date(order.created_at);
                     return orderDate > recentTimeframe;
                   }
                   return false;
                 });
-                
+
                 setRecentActivityCount(recentOrders.length);
               } else {
                 setRecentActivityCount(0);
@@ -320,7 +336,6 @@ const Dashboard = () => {
       }
     });
 
-    
     // Count total and pending orders
     const totalOrders = orders.length;
     const pendingOrders = orders.filter(
@@ -400,6 +415,7 @@ const Dashboard = () => {
             statsData={statsData}
             orders={orders}
             onCardClick={handleCardClick}
+            token={token}
           />
         );
     }
@@ -474,10 +490,10 @@ const Dashboard = () => {
             </button>
           )}
 
-          <FancyRealTimeClock/>
+          <FancyRealTimeClock />
 
           <div className="nav-actions">
-            <button 
+            <button
               className="action-button notification-btn"
               onClick={() => setActiveMenu("Dashboard")}
               title="Recent activities"
@@ -485,7 +501,9 @@ const Dashboard = () => {
               <div className="notification-icon-container">
                 <Bell size={20} />
                 {recentActivityCount > 0 && (
-                  <span className="notification-badge">{recentActivityCount}</span>
+                  <span className="notification-badge">
+                    {recentActivityCount}
+                  </span>
                 )}
               </div>
             </button>
